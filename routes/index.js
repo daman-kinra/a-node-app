@@ -4,6 +4,9 @@ const users = require("../models/users.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { requireLogin } = require("../middlewares/auth.js");
+const projects = require("../models/projects");
+const { v4 } = require("uuid");
+const tasks = require("../models/tasks.js");
 
 route.post("/register", async (req, res) => {
   const { name, email, password, username, profileurl } = req.body;
@@ -52,11 +55,61 @@ route.get("/", requireLogin, async (req, res) => {
     if (req.error) {
       res.status(200).json({ error: true });
     } else {
+      const socket = await req.app.get("socket");
       const user = await users.findById(req.user._id).select("-password");
-      res.json(user);
+      const project = await projects.find({ parteners: { $in: [user.email] } });
+      await socket.emit("welcome", "hello");
+      res.json({ user, project });
     }
   } catch (error) {
     console.log(error);
+  }
+});
+
+route.post("/newproject", requireLogin, async (req, res) => {
+  try {
+    if (req.error) {
+      res.status(200).json({ error: true });
+    } else {
+      const user = await users.findById(req.user._id).select("-password");
+      const project = new projects({
+        project_id: v4(),
+        owner: user.email,
+        parteners: [user.email],
+        tasks: [],
+        name: req.body.name,
+        description: req.body.description,
+      });
+      await project.save();
+      res.status(200).json(project);
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(404).json({ error: error });
+  }
+});
+
+route.post("/newtask", requireLogin, async (req, res) => {
+  try {
+    if (req.error) {
+      res.status(200).json({ error: true });
+    } else {
+      const newtask = new tasks({
+        task_id: v4(),
+        project_id: req.body.project_id,
+        created_by: req.body.created_by,
+        name: req.body.name,
+        description: req.body.description,
+      });
+      await newtask.save();
+      await projects.updateOne(
+        { project_id: req.body.project_id },
+        { $push: { tasks: newtask._id } }
+      );
+      res.status(200).json(newtask);
+    }
+  } catch (error) {
+    res.json(error);
   }
 });
 module.exports = route;

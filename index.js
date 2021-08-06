@@ -16,9 +16,8 @@ const io = require("socket.io")(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  socket.emit("welcome", "Hello");
-});
+io.on("connection", (socket) => {});
+
 db.connect(
   `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@db.zrgix.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`,
   {
@@ -37,3 +36,4 @@ db.connect(
 server.listen(5000, () => {
   console.log("running...");
 });
+app.set("socket", io);

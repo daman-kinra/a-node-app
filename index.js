@@ -16,7 +16,22 @@ const io = require("socket.io")(server, {
   },
 });
 
-io.on("connection", (socket) => {});
+io.on("connection", (socket) => {
+  socket.on("join-this-project-room", (room) => {
+    socket.join(room);
+  });
+  socket.emit("update-online-users", "");
+  socket.on("disconnect-from-this-room", (room, email) => {
+    socket.leave(room);
+    // socket.to(room).emit("left-chat", { message: `${email} left the chat` });
+  });
+  socket.on("typing-start", (room, who) => {
+    socket.broadcast.to(room).emit("typing-started", who);
+  });
+  socket.on("typing-stop", (room) => {
+    socket.broadcast.to(room).emit("typing-stopped", "");
+  });
+});
 
 db.connect(
   `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@db.zrgix.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`,

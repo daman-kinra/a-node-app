@@ -7,6 +7,7 @@ const { requireLogin } = require("../middlewares/auth.js");
 const projects = require("../models/projects");
 const { v4 } = require("uuid");
 const tasks = require("../models/tasks.js");
+const chats = require("../models/chats.js");
 
 route.post("/register", async (req, res) => {
   const { name, email, password, username, profileurl } = req.body;
@@ -111,5 +112,30 @@ route.post("/newtask", requireLogin, async (req, res) => {
   } catch (error) {
     res.json(error);
   }
+});
+
+route.post("/newMessage", async (req, res) => {
+  const socket = await req.app.get("socket");
+  const chat = new chats({
+    message: req.body.message,
+    sender: req.body.sender,
+    mentioned: req.body.mentioned,
+    roomId: req.body.roomId,
+  });
+  await chat.save();
+  await socket.to(req.body.roomId).emit("new-message", chat);
+  res.status(200).json(chat);
+});
+
+route.post("/projectMessages", async (req, res) => {
+  const chat = await chats.find({ roomId: req.body.roomId });
+  res.status(200).json(chat);
+});
+
+route.post("/deleteMessage", async (req, res) => {
+  const socket = await req.app.get("socket");
+  await chats.findByIdAndRemove(req.body._id);
+  await socket.to(req.body.roomId).emit("delete-message", req.body._id);
+  res.status(200).json({ message: "done" });
 });
 module.exports = route;
